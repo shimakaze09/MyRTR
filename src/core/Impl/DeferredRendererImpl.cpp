@@ -205,9 +205,9 @@ gl::Texture2D* DeferredRenderer::Impl::GetTex2D(const Image* img,
                                                 DefaultTex default_tex) {
   if (img == nullptr) {
     switch (default_tex) {
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::White:
+      case My::DeferredRenderer::Impl::DefaultTex::White:
         return &default_white;
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::Normal:
+      case My::DeferredRenderer::Impl::DefaultTex::Normal:
         return &default_normal;
       default:
         return nullptr;
@@ -266,12 +266,21 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
                                         size_t width, size_t height) {
   ResizeBuffer(width, height);
 
-  gb.Bind();
-  gl::Enable(gl::Capability::DepthTest);
-  gl::ClearColor({0.f, 0.f, 0.f, 0.f});
-  gl::Clear(gl::BufferSelectBit::ColorBufferBit |
-            gl::BufferSelectBit::DepthBufferBit |
-            gl::BufferSelectBit::StencilBufferBit);
+  // set pointlights
+  size_t pointLightNum = 0;
+  scene->Each([this, &pointLightNum](Cmpt::Light* light) {
+    if (vtable_is<PointLight>(light->light.get())) {
+      auto pointLight = static_cast<const PointLight*>(light->light.get());
+      auto pos = light->sobj->Get<Cmpt::Transform>()->GetWorldPos();
+      string obj = string("pointlights[") + to_string(pointLightNum++) + "]";
+      deferredlightProgram->SetVecf3((obj + ".position").c_str(), pos);
+      deferredlightProgram->SetVecf3((obj + ".radiance").c_str(),
+                                     pointLight->intensity * pointLight->color);
+    }
+  });
+  deferredlightProgram->SetUInt("pointlight_num", pointLightNum);
+
+  // camera
   auto camera = camObj->Get<Cmpt::Camera>();
   assert(camera != nullptr);
   auto cam_l2w = camObj->Get<Cmpt::Transform>()->GetLocalToWorldMatrix();
@@ -280,6 +289,14 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   gProgram->SetMatf4("view", transformf::look_at(cam_pos, cam_pos + cam_front));
   gProgram->SetMatf4("projection", transformf::perspective(
                                        camera->fov, camera->ar, 0.1f, 100.f));
+  deferredlightProgram->SetVecf3("camera_pos", cam_pos);
+
+  gb.Bind();
+  gl::Enable(gl::Capability::DepthTest);
+  gl::ClearColor({0.f, 0.f, 0.f, 0.f});
+  gl::Clear(gl::BufferSelectBit::ColorBufferBit |
+            gl::BufferSelectBit::DepthBufferBit |
+            gl::BufferSelectBit::StencilBufferBit);
   scene->Each([this](Cmpt::Geometry* geo, Cmpt::Material* mat) {
     Primitive* primitive = geo->primitive;
     auto va = GetPrimitiveVAO(primitive);
@@ -315,7 +332,6 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
 
   deferredlightProgram->SetVecf3("pointlight_pos", {0, 3, 0});
   deferredlightProgram->SetVecf3("pointlight_radiance", {100, 100, 120});
-  deferredlightProgram->SetVecf3("camera_pos", cam_pos);
 
   screen->va->Draw(deferredlightProgram);
 }

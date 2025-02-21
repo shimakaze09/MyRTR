@@ -23,6 +23,15 @@ uniform vec3 camera_pos;
 uniform vec3 pointlight_pos;
 uniform vec3 pointlight_radiance;
 
+struct PointLight {
+	vec3 position;
+	vec3 radiance;
+};
+
+#define MAX_POINT_LIGHT_NUM 8
+uniform unsigned int pointlight_num;
+uniform PointLight pointlights[MAX_POINT_LIGHT_NUM];
+
 vec3 fresnel(vec3 albedo, float metalness, float cos_theta) {
 	float reflectance = 0.04;
 	vec3 F0 = mix(vec3(reflectance), albedo, metalness);
@@ -65,27 +74,31 @@ void main() {
 	vec3 pos = data2.xyz;
 	
 	float alpha = roughness * roughness;
+	vec3 V = normalize(camera_pos - pos); // frag to camera
+	
+	vec3 Lo = vec3(0);
 	
 	// point light
-	vec3 fragTolight = pointlight_pos - pos; // frag to light
-	float dist2 = dot(fragTolight, fragTolight);
-	float dist = sqrt(dist2);
-	vec3 L = fragTolight / dist; // normalized
-	vec3 V = normalize(camera_pos - pos); // frag to camera
-	vec3 H = normalize(L + V);
+	for(unsigned int i = 0u; i < pointlight_num; i++) {
+		vec3 fragTolight = pointlights[i].position - pos; // frag to light
+		float dist2 = dot(fragTolight, fragTolight);
+		float dist = sqrt(dist2);
+		vec3 L = fragTolight / dist; // normalized
+		vec3 H = normalize(L + V);
+		
+		float cos_theta = dot(N, L);
+		
+		vec3 fr = fresnel(albedo, metalness, cos_theta);
+		float D = GGX_D(alpha, N, H);
+		float G = GGX_G(alpha, L, V, N);
+		
+		vec3 diffuse = (1-fr)*(1-metalness)*albedo/PI;
+		
+		vec3 specular = fr * D * G / (4 * max(dot(L, N)*dot(V, N), EPSILON));
+		
+		vec3 brdf = diffuse + specular;
+		Lo += brdf * pointlights[i].radiance * max(cos_theta, 0) / dist2;
+	}
 	
-	float cos_theta = dot(N, L);
-	
-	vec3 fr = fresnel(albedo, metalness, cos_theta);
-	float D = GGX_D(alpha, N, H);
-	float G = GGX_G(alpha, L, V, N);
-	
-	vec3 diffuse = (1-fr)*(1-metalness)*albedo/PI;
-	
-	vec3 specular = fr * D * G / (4 * max(dot(L, N)*dot(V, N), EPSILON));
-	
-	vec3 brdf = diffuse + specular;
-	vec3 Lo = brdf * pointlight_radiance * max(cos_theta, 0) / dist2;
-	
-	FragColor = vec4(Lo, roughness * metalness);
+	FragColor = vec4(Lo, 1);
 }
