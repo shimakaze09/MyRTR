@@ -26,28 +26,14 @@ class DeferredRenderer::Impl {
   gl::VertexArray* GetPrimitiveVAO(const Primitive* primitive);
 
  private:
-  struct PrimitiveResource {
-    gl::VertexArray* va{nullptr};
-    std::map<std::string, gl::VertexBuffer*> n2vb;
-    gl::ElementBuffer* eb{nullptr};
-
-    ~PrimitiveResource() {
-      delete va;
-      for (const auto& [name, vb] : n2vb)
-        delete vb;
-      delete eb;
-    }
-  };
-
+  struct PrimitiveResource;
   std::map<const Primitive*, PrimitiveResource*> p2r;
   size_t width{0};
   size_t height{0};
-  gl::Texture2D* tex0{nullptr};
-  gl::Texture2D* tex1{nullptr};
-  gl::Texture2D* tex2{nullptr};
-  gl::Texture2D* tex3{nullptr};
+  std::array<gl::Texture2D*, 4> gtexs{nullptr};
   gl::RenderBuffer* depth{nullptr};
   gl::Program* gProgram{nullptr};
+  gl::Program* deferredlightProgram{nullptr};
   gl::Program* screenProgram{nullptr};
   gl::FrameBuffer gb;
   std::map<std::string, gl::Shader*> path2shader;

@@ -39,8 +39,8 @@ int main() {
 
   // glfw window creation
   // --------------------
-  GLFWwindow* window =
-      glfwCreateWindow(SCR_WIDTH, SCR_HEIGHT, "LearnOpenGL", NULL, NULL);
+  GLFWwindow* window = glfwCreateWindow(
+      SCR_WIDTH, SCR_HEIGHT, "My@2025 : test - 01 - defer", NULL, NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
@@ -65,16 +65,22 @@ int main() {
 
   auto [sobj0, tsfm0, camera] =
       scene.CreateSObj<Cmpt::Transform, Cmpt::Camera>("sobj0");
-  auto [sobj1, tsfm1, geo1] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry>("sobj1");
-  auto [sobj2, tsfm2, geo2] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry>("sobj2");
-  auto [sobj3, tsfm3, geo3] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry>("sobj3");
+  auto [sobj1, tsfm1, geo1, mat1] =
+      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
+          "sobj1");
+  auto [sobj2, tsfm2, geo2, mat2] =
+      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
+          "sobj2");
+  auto [sobj3, tsfm3, geo3, mat3] =
+      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
+          "sobj3");
 
   geo1->SetPrimitive(new Sphere);
   geo2->SetPrimitive(new Square);
   geo3->SetPrimitive(new TriMesh(TriMesh::Type::Cube));
+  mat1->SetMaterial(new stdBRDF);
+  mat2->SetMaterial(new stdBRDF);
+  mat3->SetMaterial(new stdBRDF);
   tsfm0->SetPosition({0, 0, 8});
   tsfm1->SetPosition({-4, 0, 0});
   tsfm2->SetRotation({vecf3{1, 0, 0}, to_radian(45.f)});
