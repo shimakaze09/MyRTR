@@ -7,6 +7,9 @@
 
 #include <MyRTR/DeferredRenderer.h>
 
+#include <MyScene/tool/SceneReflectionInit.h>
+#include <MyScene/tool/serialize/SerializerJSON.h>
+
 #include <MyGL/MyGL>
 
 #include <MyScene/core/core>
@@ -23,6 +26,7 @@ constexpr size_t SCR_HEIGHT = 720;
 void processInput(GLFWwindow* window);
 
 int main() {
+  SceneReflectionInit();
 
   // glfw: initialize and configure
   // ------------------------------
@@ -86,30 +90,38 @@ int main() {
   string albedo_path = "../data/textures/rusted_iron/albedo.png";
   string roughness_path = "../data/textures/rusted_iron/roughness.png";
   string metalness_path = "../data/textures/rusted_iron/metallic.png";
+  string normal_path = "../data/textures/rusted_iron/normal.png";
   brdf1->albedo_texture =
       ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
   brdf1->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       roughness_path, roughness_path);
   brdf1->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       metalness_path, metalness_path);
+  brdf1->normal_map =
+      ResourceMngr<Image>::Instance().GetOrCreate(normal_path, normal_path);
   brdf2->albedo_texture =
       ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
   brdf2->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       roughness_path, roughness_path);
   brdf2->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       metalness_path, metalness_path);
+  brdf2->normal_map =
+      ResourceMngr<Image>::Instance().GetOrCreate(normal_path, normal_path);
   brdf3->albedo_texture =
       ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
   brdf3->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       roughness_path, roughness_path);
   brdf3->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
       metalness_path, metalness_path);
+  brdf3->normal_map =
+      ResourceMngr<Image>::Instance().GetOrCreate(normal_path, normal_path);
   mat1->SetMaterial(brdf1);
   mat2->SetMaterial(brdf2);
   mat3->SetMaterial(brdf3);
 
   tsfm0->SetPosition({0, 0, 8});
   tsfm1->SetPosition({-4, 0, 0});
+  tsfm1->SetScale({2.f});
   tsfm2->SetRotation({vecf3{1, 0, 0}, to_radian(45.f)});
   tsfm3->SetPosition({4, 0, 0});
   tsfm3->SetScale({1, 2, 1});
@@ -118,6 +130,10 @@ int main() {
 
   light4->light = new PointLight{100.f, {0.9f, 0.9f, 1.f}};
   tsfm4->SetPosition({0, 4, 0});
+
+  SerializerJSON serializer;
+  auto rst = serializer.Serialize(&scene);
+  cout << rst << endl;
 
   DeferredRenderer rtr;
 

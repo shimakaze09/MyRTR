@@ -13,6 +13,7 @@ ADD_TARGET_GDR(
         INTERFACE_INC ON
         PUBLIC_GLIBS
         "My::MyScene_core"
+        "My::MyScene_tool"
         "My::MyGL_core"
         "My::MyDP_core"
 )

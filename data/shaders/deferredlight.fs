@@ -50,7 +50,7 @@ float GGX_G(float alpha, vec3 L, vec3 V, vec3 N) {
 	float tan2_sthetai = 1 / (cos_sthetai * cos_sthetai) - 1;
 	float tan2_sthetao = 1 / (cos_sthetao * cos_sthetao) - 1;
 	
-	return 2 / (sqrt(1 + alpha2*tan2_sthetai) + sqrt(1 + alpha2*tan2_sthetao));
+	return step(cos_sthetai, 0) * step(cos_sthetai, 0) * 2 / (sqrt(1 + alpha2*tan2_sthetai) + sqrt(1 + alpha2*tan2_sthetao));
 }
 
 float GGX_D(float alpha, vec3 N, vec3 H) {
@@ -58,7 +58,7 @@ float GGX_D(float alpha, vec3 N, vec3 H) {
 	float cos_stheta = dot(H, N);
 	float x = 1 + (alpha2 - 1) * cos_stheta * cos_stheta;
 	float denominator = PI * x * x;
-	return alpha2 / denominator;
+	return step(cos_stheta, 0) * alpha2 / denominator;
 }
 
 void main() {
