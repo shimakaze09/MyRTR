@@ -81,6 +81,8 @@ int main() {
   mat1->SetMaterial(new stdBRDF);
   mat2->SetMaterial(new stdBRDF);
   auto brdf = new stdBRDF;
+  brdf->metalness_factor = 1.f;
+  brdf->roughness_factor = 0.5f;
   string path = "../data/textures/checkerboard.png";
   brdf->albedo_texture =
       ResourceMngr<Image>::Instance().GetOrCreate(path, path);
