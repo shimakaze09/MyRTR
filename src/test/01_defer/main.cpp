@@ -67,19 +67,14 @@ int main() {
 
   Scene scene("scene");
 
-  auto [sobj0, tsfm0, camera] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Camera>("sobj0");
+  auto [sobj0, tsfm0, camera] = scene.CreateSObj<Cmpt::Camera>("sobj0");
   auto [sobj1, tsfm1, geo1, mat1] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
-          "sobj1");
+      scene.CreateSObj<Cmpt::Geometry, Cmpt::Material>("sobj1");
   auto [sobj2, tsfm2, geo2, mat2] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
-          "sobj2");
+      scene.CreateSObj<Cmpt::Geometry, Cmpt::Material>("sobj2");
   auto [sobj3, tsfm3, geo3, mat3] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Geometry, Cmpt::Material>(
-          "sobj3");
-  auto [sobj4, tsfm4, light4] =
-      scene.CreateSObj<Cmpt::Transform, Cmpt::Light>("sobj4");
+      scene.CreateSObj<Cmpt::Geometry, Cmpt::Material>("sobj3");
+  auto [sobj4, tsfm4, light4] = scene.CreateSObj<Cmpt::Light>("sobj4");
 
   geo1->SetPrimitive(new Sphere);
   geo2->SetPrimitive(new Square);

@@ -271,7 +271,7 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   scene->Each([this, &pointLightNum](Cmpt::Light* light) {
     if (vtable_is<PointLight>(light->light.get())) {
       auto pointLight = static_cast<const PointLight*>(light->light.get());
-      auto pos = light->sobj->Get<Cmpt::Transform>()->GetWorldPos();
+      auto pos = light->sobj->Get<Cmpt::Transform>()->WorldPos();
       string obj = string("pointlights[") + to_string(pointLightNum++) + "]";
       deferredlightProgram->SetVecf3((obj + ".position").c_str(), pos);
       deferredlightProgram->SetVecf3((obj + ".radiance").c_str(),
@@ -283,7 +283,7 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   // camera
   auto camera = camObj->Get<Cmpt::Camera>();
   assert(camera != nullptr);
-  auto cam_l2w = camObj->Get<Cmpt::Transform>()->GetLocalToWorldMatrix();
+  auto cam_l2w = camObj->Get<Cmpt::Transform>()->LocalToWorldMatrix();
   auto cam_pos = cam_l2w * pointf3{0.f};
   auto cam_front = cam_l2w * vecf3{0, 0, -1};
   gProgram->SetMatf4("view", transformf::look_at(cam_pos, cam_pos + cam_front));
@@ -313,8 +313,8 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
       gProgram->Active(2, GetTex2D(brdf->metalness_texture));
       gProgram->Active(3, GetTex2D(brdf->normal_map, DefaultTex::Normal));
     }
-    gProgram->SetMatf4(
-        "model", geo->sobj->Get<Cmpt::Transform>()->GetLocalToWorldMatrix());
+    gProgram->SetMatf4("model",
+                       geo->sobj->Get<Cmpt::Transform>()->LocalToWorldMatrix());
     va->Draw(gProgram);
   });
 
