@@ -11,8 +11,8 @@ ADD_TARGET_GDR(
         MODE "LIB"
         SOURCES ${SOURCES}
         INTERFACE_INC ON
-        GENERAL_LIBS
-        "My::MyScene_core"
         PUBLIC_GLIBS
+        "My::MyScene_core"
         "My::MyGL_core"
+        "My::MyDP_core"
 )
