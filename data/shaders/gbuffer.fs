@@ -19,21 +19,22 @@ in VS_OUT {
 } vs_out;
 
 uniform vec3 albedo_factor;
-//uniform sampler2D albedo_texture;
 uniform float roughness_factor;
-//uniform sampler2D roughness_texture;
 uniform float metalness_factor;
-//uniform sampler2D metalness_texture;
-//uniform sampler2D normal_texture;
+
+uniform sampler2D albedo_texture;
+uniform sampler2D roughness_texture;
+uniform sampler2D metalness_texture;
+uniform sampler2D normalmap;
 
 void main()
 {
-	vec3 albedo = albedo_factor;// * texture(albedo_texture, vs_out.TexCoords).rgb;
-	float roughness = roughness_factor;// * texture(roughness_texture, vs_out.TexCoords).r;
-	float metalness = metalness_factor;// * texture(metalness_texture, vs_out.TexCoords).r;
-	vec3 normal = vec3(0,0,1);//texture(normal_texture, vs_out.TexCoords).xyz;
+	vec3 albedo = albedo_factor * texture(albedo_texture, vs_out.TexCoords).rgb;
+	float roughness = roughness_factor * texture(roughness_texture, vs_out.TexCoords).r;
+	float metalness = metalness_factor * texture(metalness_texture, vs_out.TexCoords).r;
+	vec3 normal = texture(normalmap, vs_out.TexCoords).xyz;
 	normal = 2 * normal - 1;
-	normal = vs_out.TBN * normal;
+	normal = normalize(vs_out.TBN * normal);
 	
 	GBuffer0 = vec4(albedo, roughness);
 	GBuffer1 = vec4(normal, metalness);

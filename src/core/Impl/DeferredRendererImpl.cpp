@@ -31,6 +31,19 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
                        gl::MinFilter::Nearest, gl::MagFilter::Nearest);
   }
 
+  float white_data[16] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+  default_white.SetImage(0, gl::PixelDataInternalFormat::Rgba, 2, 2,
+                         gl::PixelDataFormat::Rgba, gl::PixelDataType::Float,
+                         white_data);
+  default_white.SetWrapFilter(gl::WrapMode::Repeat, gl::WrapMode::Repeat,
+                              gl::MinFilter::Nearest, gl::MagFilter::Nearest);
+  float normal_data[12] = {0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5, 1, 0.5, 0.5, 1};
+  default_normal.SetImage(0, gl::PixelDataInternalFormat::Rgb, 2, 2,
+                          gl::PixelDataFormat::Rgb, gl::PixelDataType::Float,
+                          normal_data);
+  default_normal.SetWrapFilter(gl::WrapMode::Repeat, gl::WrapMode::Repeat,
+                               gl::MinFilter::Nearest, gl::MagFilter::Nearest);
+
   string p3t2n3t3_vs_path = "../data/shaders/p3t2n3t3.vs";
   string p2t2_vs_path = "../data/shaders/p2t2.vs";
   string gbuffer_fs_path = "../data/shaders/gbuffer.fs";
@@ -55,6 +68,11 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   gProgram = new gl::Program(p3t2n3t3_vs, gbuffer_fs);
   screenProgram = new gl::Program(p2t2_vs, img_fs);
   deferredlightProgram = new gl::Program(p2t2_vs, deferredlight_fs);
+
+  gProgram->SetTex("albedo_texture", 0);
+  gProgram->SetTex("roughness_texture", 1);
+  gProgram->SetTex("metalness_texture", 2);
+  gProgram->SetTex("normalmap", 3);
 
   screenProgram->SetTex("texture0", 0);
   deferredlightProgram->SetTex("gbuffer0", 0);
@@ -146,6 +164,41 @@ gl::VertexArray* DeferredRenderer::Impl::GetPrimitiveVAO(
     return nullptr;
 }
 
+gl::Texture2D* DeferredRenderer::Impl::GetTex2D(const Image* img,
+                                                DefaultTex default_tex) {
+  if (img == nullptr) {
+    switch (default_tex) {
+      case Ubpa::DeferredRenderer::Impl::DefaultTex::White:
+        return &default_white;
+      case Ubpa::DeferredRenderer::Impl::DefaultTex::Normal:
+        return &default_normal;
+      default:
+        return nullptr;
+    }
+  }
+
+  auto tex2d = ResourceMngr<gl::Texture2D, const Image*>::Instance().Get(img);
+  if (tex2d != nullptr)
+    return tex2d;
+
+  auto new_tex = new gl::Texture2D;
+  gl::PixelDataFormat c2f[4] = {
+      gl::PixelDataFormat::Red, gl::PixelDataFormat::Rg,
+      gl::PixelDataFormat::Rgb, gl::PixelDataFormat::Rgba};
+  gl::PixelDataInternalFormat c2if[4] = {
+      gl::PixelDataInternalFormat::Red, gl::PixelDataInternalFormat::Rg,
+      gl::PixelDataInternalFormat::Rgb, gl::PixelDataInternalFormat::Rgba};
+  new_tex->SetImage(0, c2if[img->channel - 1], img->width, img->height,
+                    c2f[img->channel - 1], gl::PixelDataType::Float,
+                    img->data.get());
+  new_tex->SetWrapFilter(gl::WrapMode::Repeat, gl::WrapMode::Repeat,
+                         gl::MinFilter::Linear, gl::MagFilter::Linear);
+
+  ResourceMngr<gl::Texture2D, const Image*>::Instance().Regist(img, new_tex);
+
+  return new_tex;
+}
+
 void DeferredRenderer::Impl::ResizeBuffer(size_t width, size_t height) {
   if (this->width == width && this->height == height)
     return;
@@ -201,6 +254,11 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
       gProgram->SetFloat("metalness_factor", brdf->metalness_factor);
       gProgram->SetVecf3("albedo_factor", brdf->albedo_factor);
       gProgram->SetFloat("roughness_factor", brdf->roughness_factor);
+
+      gProgram->Active(0, GetTex2D(brdf->albedo_texture));
+      gProgram->Active(1, GetTex2D(brdf->roughness_texture));
+      gProgram->Active(2, GetTex2D(brdf->metalness_texture));
+      gProgram->Active(3, GetTex2D(brdf->normal_map, DefaultTex::Normal));
     }
     gProgram->SetMatf4(
         "model", geo->sobj->Get<Cmpt::Transform>()->GetLocalToWorldMatrix());
@@ -209,6 +267,7 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
 
   gl::FrameBuffer::BindReset();
   gl::Disable(gl::Capability::DepthTest);
+
   deferredlightProgram->Active(
       0, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
   deferredlightProgram->Active(
@@ -217,7 +276,9 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
       2, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment2));
   deferredlightProgram->Active(
       3, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment3));
-  deferredlightProgram->SetVecf3("pointlight_pos", {0, 4, 0});
-  deferredlightProgram->SetVecf3("pointlight_radiance", {10, 10, 15});
+
+  deferredlightProgram->SetVecf3("pointlight_pos", {0, 3, 0});
+  deferredlightProgram->SetVecf3("pointlight_radiance", {100, 100, 120});
+
   screen->va->Draw(deferredlightProgram);
 }

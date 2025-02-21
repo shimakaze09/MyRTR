@@ -80,7 +80,12 @@ int main() {
   geo3->SetPrimitive(new TriMesh(TriMesh::Type::Cube));
   mat1->SetMaterial(new stdBRDF);
   mat2->SetMaterial(new stdBRDF);
-  mat3->SetMaterial(new stdBRDF);
+  auto brdf = new stdBRDF;
+  string path = "../data/textures/checkerboard.png";
+  brdf->albedo_texture =
+      ResourceMngr<Image>::Instance().GetOrCreate(path, path);
+  mat3->SetMaterial(brdf);
+
   tsfm0->SetPosition({0, 0, 8});
   tsfm1->SetPosition({-4, 0, 0});
   tsfm2->SetRotation({vecf3{1, 0, 0}, to_radian(45.f)});
