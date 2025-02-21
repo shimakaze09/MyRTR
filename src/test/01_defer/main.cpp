@@ -78,15 +78,33 @@ int main() {
   geo1->SetPrimitive(new Sphere);
   geo2->SetPrimitive(new Square);
   geo3->SetPrimitive(new TriMesh(TriMesh::Type::Cube));
-  mat1->SetMaterial(new stdBRDF);
-  mat2->SetMaterial(new stdBRDF);
-  auto brdf = new stdBRDF;
-  brdf->metalness_factor = 1.f;
-  brdf->roughness_factor = 0.5f;
-  string path = "../data/textures/checkerboard.png";
-  brdf->albedo_texture =
-      ResourceMngr<Image>::Instance().GetOrCreate(path, path);
-  mat3->SetMaterial(brdf);
+  auto brdf1 = new stdBRDF;
+  auto brdf2 = new stdBRDF;
+  auto brdf3 = new stdBRDF;
+  string albedo_path = "../data/textures/rusted_iron/albedo.png";
+  string roughness_path = "../data/textures/rusted_iron/roughness.png";
+  string metalness_path = "../data/textures/rusted_iron/metallic.png";
+  brdf1->albedo_texture =
+      ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
+  brdf1->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      roughness_path, roughness_path);
+  brdf1->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      metalness_path, metalness_path);
+  brdf2->albedo_texture =
+      ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
+  brdf2->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      roughness_path, roughness_path);
+  brdf2->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      metalness_path, metalness_path);
+  brdf3->albedo_texture =
+      ResourceMngr<Image>::Instance().GetOrCreate(albedo_path, albedo_path);
+  brdf3->roughness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      roughness_path, roughness_path);
+  brdf3->metalness_texture = ResourceMngr<Image>::Instance().GetOrCreate(
+      metalness_path, metalness_path);
+  mat1->SetMaterial(brdf1);
+  mat2->SetMaterial(brdf2);
+  mat3->SetMaterial(brdf3);
 
   tsfm0->SetPosition({0, 0, 8});
   tsfm1->SetPosition({-4, 0, 0});

@@ -45,6 +45,7 @@ class DeferredRenderer::Impl {
   gl::FrameBuffer gb;
   std::map<std::string, gl::Shader*> path2shader;
   PrimitiveResource* screen{nullptr};
+  PrimitiveResource* sphere{nullptr};
   gl::Texture2D default_white;
   gl::Texture2D default_normal;
 };
