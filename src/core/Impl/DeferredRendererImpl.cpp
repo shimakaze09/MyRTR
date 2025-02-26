@@ -39,25 +39,32 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
 
   string p3t2n3t3_vs_path = "../data/shaders/p3t2n3t3.vs";
   string p2t2_vs_path = "../data/shaders/p2t2.vs";
+  string env_vs_path = "../data/shaders/env.vs";
   string gbuffer_fs_path = "../data/shaders/gbuffer.fs";
   string img_fs_path = "../data/shaders/img.fs";
   string deferredlight_fs_path = "../data/shaders/deferredlight.fs";
+  string env_fs_path = "../data/shaders/env.fs";
 
   auto p3t2n3t3_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       p3t2n3t3_vs_path, gl::ShaderType::VertexShader, p3t2n3t3_vs_path);
-  auto gbuffer_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
-      gbuffer_fs_path, gl::ShaderType::FragmentShader, gbuffer_fs_path);
   auto p2t2_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       p2t2_vs_path, gl::ShaderType::VertexShader, p2t2_vs_path);
+  auto env_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      env_vs_path, gl::ShaderType::VertexShader, env_vs_path);
+  auto gbuffer_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      gbuffer_fs_path, gl::ShaderType::FragmentShader, gbuffer_fs_path);
   auto img_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       img_fs_path, gl::ShaderType::FragmentShader, img_fs_path);
   auto deferredlight_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       deferredlight_fs_path, gl::ShaderType::FragmentShader,
       deferredlight_fs_path);
+  auto env_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      env_fs_path, gl::ShaderType::FragmentShader, env_fs_path);
 
   gProgram = new gl::Program(p3t2n3t3_vs, gbuffer_fs);
   screenProgram = new gl::Program(p2t2_vs, img_fs);
   deferredlightProgram = new gl::Program(p2t2_vs, deferredlight_fs);
+  envProgram = new gl::Program(env_vs, env_fs);
 
   gProgram->SetTex("albedo_texture", 0);
   gProgram->SetTex("roughness_texture", 1);
@@ -65,6 +72,7 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   gProgram->SetTex("normalmap", 3);
 
   screenProgram->SetTex("img", 0);
+  envProgram->SetTex("EnvLight_texture", 0);
 
   deferredlightProgram->SetTex("gbuffer0", 0);
   deferredlightProgram->SetTex("gbuffer1", 1);
@@ -87,6 +95,15 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
        make_tuple(sphereMesh.texcoords->data()->data(), 2),
        make_tuple(sphereMesh.normals->data()->data(), 3),
        make_tuple(sphereMesh.tangents->data()->data(), 3)});
+
+  auto cubeMesh = TriMesh(TriMesh::Type::Cube);
+  cube =
+      new gl::Mesh(gl::BasicPrimitiveType::Triangles, cubeMesh.indices->size(),
+                   cubeMesh.positions->size(), cubeMesh.indices->data()->data(),
+                   {make_tuple(cubeMesh.positions->data()->data(), 3),
+                    make_tuple(cubeMesh.texcoords->data()->data(), 2),
+                    make_tuple(cubeMesh.normals->data()->data(), 3),
+                    make_tuple(cubeMesh.tangents->data()->data(), 3)});
 }
 
 DeferredRenderer::Impl::~Impl() {
@@ -104,6 +121,7 @@ DeferredRenderer::Impl::~Impl() {
 
   delete screen;
   delete sphere;
+  delete cube;
 }
 
 gl::Mesh* DeferredRenderer::Impl::GetPrimitiveMesh(const Primitive* primitive) {
@@ -129,12 +147,13 @@ gl::Mesh* DeferredRenderer::Impl::GetPrimitiveMesh(const Primitive* primitive) {
 }
 
 gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
-                                                  DefaultTex default_tex) {
+                                                  DefaultTex default_tex,
+                                                  TexPrecision precision) {
   if (tex == nullptr) {
     switch (default_tex) {
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::White:
+      case My::DeferredRenderer::Impl::DefaultTex::White:
         return &default_white;
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::Normal:
+      case My::DeferredRenderer::Impl::DefaultTex::Normal:
         return &default_normal;
       default:
         return nullptr;
@@ -149,9 +168,29 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
   gl::PixelDataFormat c2f[4] = {
       gl::PixelDataFormat::Red, gl::PixelDataFormat::Rg,
       gl::PixelDataFormat::Rgb, gl::PixelDataFormat::Rgba};
-  gl::PixelDataInternalFormat c2if[4] = {
-      gl::PixelDataInternalFormat::Red, gl::PixelDataInternalFormat::Rg,
-      gl::PixelDataInternalFormat::Rgb, gl::PixelDataInternalFormat::Rgba};
+  gl::PixelDataInternalFormat c2if[4];
+  switch (precision) {
+    case My::DeferredRenderer::Impl::TexPrecision::Byte8:
+      c2if[0] = gl::PixelDataInternalFormat::Red;
+      c2if[1] = gl::PixelDataInternalFormat::Rg;
+      c2if[2] = gl::PixelDataInternalFormat::Rgb;
+      c2if[3] = gl::PixelDataInternalFormat::Rgba;
+      break;
+    case My::DeferredRenderer::Impl::TexPrecision::F16:
+      c2if[0] = gl::PixelDataInternalFormat::R16F;
+      c2if[1] = gl::PixelDataInternalFormat::Rg16F;
+      c2if[2] = gl::PixelDataInternalFormat::Rgb16F;
+      c2if[3] = gl::PixelDataInternalFormat::Rgba16F;
+      break;
+    case My::DeferredRenderer::Impl::TexPrecision::F32:
+      c2if[0] = gl::PixelDataInternalFormat::R32F;
+      c2if[1] = gl::PixelDataInternalFormat::Rg32F;
+      c2if[2] = gl::PixelDataInternalFormat::Rgb32F;
+      c2if[3] = gl::PixelDataInternalFormat::Rgba32F;
+      break;
+    default:
+      break;
+  }
   map<Texture2D::WrapMode, gl::WrapMode> wrapmodemap = {
       {Texture2D::WrapMode::Clamp, gl::WrapMode::ClampToEdge},
       {Texture2D::WrapMode::Repeat, gl::WrapMode::Repeat},
@@ -194,11 +233,11 @@ void DeferredRenderer::Impl::ResizeBuffer(size_t width, size_t height) {
   gb.DrawBuffers(
       {gl::ColorBuffer::ColorAttachment0, gl::ColorBuffer::ColorAttachment1,
        gl::ColorBuffer::ColorAttachment2, gl::ColorBuffer::ColorAttachment3});
-
   gb.Attach(gl::FramebufferAttachment::DepthAttachment, depth);
 
   lightingBuffer.Attach(gl::FramebufferAttachment::ColorAttachment0,
                         lightingBuffer_tex);
+  lightingBuffer.Attach(gl::FramebufferAttachment::DepthAttachment, depth);
 
   this->width = width;
   this->height = height;
@@ -207,20 +246,6 @@ void DeferredRenderer::Impl::ResizeBuffer(size_t width, size_t height) {
 void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
                                         size_t width, size_t height) {
   ResizeBuffer(width, height);
-
-  // set pointlights
-  size_t pointLightNum = 0;
-  scene->Each([this, &pointLightNum](Cmpt::Light* light, Cmpt::Position* pos) {
-    if (vtable_is<PointLight>(light->light.get())) {
-      auto pointLight = static_cast<const PointLight*>(light->light.get());
-      string obj = string("pointlights[") + to_string(pointLightNum++) + "]";
-      deferredlightProgram->SetVecf3((obj + ".position").c_str(), pos->value);
-      deferredlightProgram->SetVecf3((obj + ".radiance").c_str(),
-                                     pointLight->intensity * pointLight->color);
-    }
-  });
-  deferredlightProgram->SetUInt("pointlight_num",
-                                static_cast<GLuint>(pointLightNum));
 
   // camera
   auto camera = camObj->Get<Cmpt::Camera>();
@@ -231,8 +256,34 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   gProgram->SetMatf4("projection", transformf::perspective(
                                        camera->fov, camera->ar, 0.1f, 100.f));
   deferredlightProgram->SetVecf3("camera_pos", cam_pos);
+  envProgram->SetMatf4("view",
+                       transformf::look_at(cam_pos, cam_pos + cam_front));
+  envProgram->SetMatf4("projection", transformf::perspective(
+                                         camera->fov, camera->ar, 0.1f, 100.f));
 
-  // pass 1: GBuffer pass
+  // set point lights and env light
+  size_t pointLightNum = 0;
+  const EnvLight* envLight = nullptr;
+  scene->Each([this, &envLight, &pointLightNum](Cmpt::Light* light,
+                                                Cmpt::Position* pos) {
+    if (vtable_is<PointLight>(light->light.get())) {
+      auto pointLight = static_cast<const PointLight*>(light->light.get());
+      string obj = string("pointlights[") + to_string(pointLightNum++) + "]";
+      deferredlightProgram->SetVecf3((obj + ".position").c_str(), pos->value);
+      deferredlightProgram->SetVecf3((obj + ".radiance").c_str(),
+                                     pointLight->intensity * pointLight->color);
+    } else if (!envLight && vtable_is<EnvLight>(light->light.get())) {
+      envLight = static_cast<const EnvLight*>(light->light.get());
+      envProgram->SetVecf3("EnvLight_color", envLight->color);
+      envProgram->SetFloat("EnvLight_intensity", envLight->intensity);
+    }
+  });
+  if (!envLight)
+    envProgram->SetFloat("EnvLight_intensity", 0.f);
+  deferredlightProgram->SetUInt("pointlight_num",
+                                static_cast<GLuint>(pointLightNum));
+
+  // [pass 1] GBuffer pass
   gb.Bind();
   gl::Enable(gl::Capability::DepthTest);
   gl::ClearColor({0.f, 0.f, 0.f, 0.f});
@@ -259,8 +310,9 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
     mesh->Draw(*gProgram);
   });
 
-  // pass 2: lighting pass
+  // [pass 2] lighting pass
   lightingBuffer.Bind();
+  gl::Disable(gl::Capability::DepthTest);
 
   deferredlightProgram->Active(
       0, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
@@ -271,12 +323,19 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   deferredlightProgram->Active(
       3, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment3));
 
-  deferredlightProgram->SetVecf3("pointlight_pos", {0, 3, 0});
-  deferredlightProgram->SetVecf3("pointlight_radiance", {100, 100, 120});
-
   screen->Draw(*deferredlightProgram);
 
-  // pass 3: present pass
+  gl::Enable(gl::Capability::DepthTest);
+  gl::DepthFunc(gl::CompareFunc::Lequal);
+
+  if (envLight)
+    envProgram->Active(
+        0, GetGLTex2D(envLight->texture, DefaultTex::White, TexPrecision::F32));
+
+  cube->Draw(*envProgram);
+  gl::DepthFunc(gl::CompareFunc::Less);
+
+  // [pass 3] present pass
   gl::FrameBuffer::BindReset();
   gl::Disable(gl::Capability::DepthTest);
 

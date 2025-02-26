@@ -81,6 +81,18 @@ int main() {
   auto [sobj3, geo3, mat3, r] =
       scene.CreateSObj<Cmpt::Geometry, Cmpt::Material, Rotater>("sobj3");
   auto [sobj4, light4] = scene.CreateSObj<Cmpt::Light>("sobj4");
+  auto [sobj5, env] = scene.CreateSObj<Cmpt::Light>("sobj5");
+
+  string albedo_path = "../data/textures/rusted_iron/albedo.png";
+  string roughness_path = "../data/textures/rusted_iron/roughness.png";
+  string metalness_path = "../data/textures/rusted_iron/metallic.png";
+  string normal_path = "../data/textures/rusted_iron/normal.png";
+  string env_path = "../data/textures/newport_loft.hdr";
+  auto albedo_texture = new Texture2D(albedo_path);
+  auto roughness_texture = new Texture2D(roughness_path);
+  auto metalness_texture = new Texture2D(metalness_path);
+  auto normals_texture = new Texture2D(normal_path);
+  auto env_texture = new Texture2D(env_path);
 
   geo1->SetPrimitive(new Sphere);
   geo2->SetPrimitive(new Square);
@@ -88,14 +100,6 @@ int main() {
   auto brdf1 = new stdBRDF;
   auto brdf2 = new stdBRDF;
   auto brdf3 = new stdBRDF;
-  string albedo_path = "../data/textures/rusted_iron/albedo.png";
-  string roughness_path = "../data/textures/rusted_iron/roughness.png";
-  string metalness_path = "../data/textures/rusted_iron/metallic.png";
-  string normal_path = "../data/textures/rusted_iron/normal.png";
-  auto albedo_texture = new Texture2D(albedo_path);
-  auto roughness_texture = new Texture2D(roughness_path);
-  auto metalness_texture = new Texture2D(metalness_path);
-  auto normals_texture = new Texture2D(normal_path);
   brdf1->albedo_texture = albedo_texture;
   brdf1->roughness_texture = roughness_texture;
   brdf1->metalness_texture = metalness_texture;
@@ -125,6 +129,8 @@ int main() {
 
   light4->light = new PointLight{100.f, {0.9f, 0.9f, 1.f}};
   sobj4->Get<Cmpt::Position>()->value = {0, 4, 0};
+
+  env->SetLight(new EnvLight(1.f, rgbf{1.f}, env_texture));
 
   SerializerJSON serializer;
   auto rst = serializer.Serialize(&scene);
