@@ -42,6 +42,8 @@ class DeferredRenderer::Impl {
   gl::Program* deferredlightProgram{nullptr};
   gl::Program* screenProgram{nullptr};
   gl::FrameBuffer gb;
+  gl::Texture2D* lightingBuffer_tex;
+  gl::FrameBuffer lightingBuffer;
   gl::Mesh* screen{nullptr};
   gl::Mesh* sphere{nullptr};
   gl::Texture2D default_white;

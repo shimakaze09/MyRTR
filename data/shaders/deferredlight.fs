@@ -3,9 +3,9 @@
 #define PI 3.1415926
 #define EPSILON 0.000001
 
-out vec4 FragColor;
+out vec3 FragColor;
 
-in vec2 TexCoords;
+in vec2 TexCoord;
 
 // layout
 //      x   y   z   w
@@ -62,10 +62,10 @@ float GGX_D(float alpha, vec3 N, vec3 H) {
 }
 
 void main() {
-	vec4 data0 = texture(gbuffer0, TexCoords);
-	vec4 data1 = texture(gbuffer1, TexCoords);
-	vec4 data2 = texture(gbuffer2, TexCoords);
-	vec4 data3 = texture(gbuffer3, TexCoords);
+	vec4 data0 = texture(gbuffer0, TexCoord);
+	vec4 data1 = texture(gbuffer1, TexCoord);
+	vec4 data2 = texture(gbuffer2, TexCoord);
+	vec4 data3 = texture(gbuffer3, TexCoord);
 	
 	vec3 albedo = data0.xyz;
 	float roughness = data0.w;
@@ -100,5 +100,5 @@ void main() {
 		Lo += brdf * pointlights[i].radiance * max(cos_theta, 0) / dist2;
 	}
 	
-	FragColor = vec4(Lo, 1);
+	FragColor = Lo;
 }

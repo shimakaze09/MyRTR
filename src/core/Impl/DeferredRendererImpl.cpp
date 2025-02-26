@@ -19,6 +19,11 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
                        gl::MinFilter::Nearest, gl::MagFilter::Nearest);
   }
 
+  lightingBuffer_tex = new gl::Texture2D;
+  lightingBuffer_tex->SetWrapFilter(
+      gl::WrapMode::ClampToEdge, gl::WrapMode::ClampToEdge,
+      gl::MinFilter::Nearest, gl::MagFilter::Nearest);
+
   float white_data[16] = {1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
   default_white.SetImage(0, gl::PixelDataInternalFormat::Rgba, 2, 2,
                          gl::PixelDataFormat::Rgba, gl::PixelDataType::Float,
@@ -59,7 +64,8 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   gProgram->SetTex("metalness_texture", 2);
   gProgram->SetTex("normalmap", 3);
 
-  screenProgram->SetTex("texture0", 0);
+  screenProgram->SetTex("img", 0);
+
   deferredlightProgram->SetTex("gbuffer0", 0);
   deferredlightProgram->SetTex("gbuffer1", 1);
   deferredlightProgram->SetTex("gbuffer2", 2);
@@ -174,6 +180,9 @@ void DeferredRenderer::Impl::ResizeBuffer(size_t width, size_t height) {
     tex->SetImage(0, gl::PixelDataInternalFormat::Rgba32F, width, height,
                   gl::PixelDataFormat::Rgba, gl::PixelDataType::Float, nullptr);
   }
+  lightingBuffer_tex->SetImage(0, gl::PixelDataInternalFormat::Rgb32F, width,
+                               height, gl::PixelDataFormat::Rgb,
+                               gl::PixelDataType::Float, nullptr);
 
   depth->SetStorage(gl::FramebufferInternalFormat::DepthComponent, width,
                     height);
@@ -187,6 +196,9 @@ void DeferredRenderer::Impl::ResizeBuffer(size_t width, size_t height) {
        gl::ColorBuffer::ColorAttachment2, gl::ColorBuffer::ColorAttachment3});
 
   gb.Attach(gl::FramebufferAttachment::DepthAttachment, depth);
+
+  lightingBuffer.Attach(gl::FramebufferAttachment::ColorAttachment0,
+                        lightingBuffer_tex);
 
   this->width = width;
   this->height = height;
@@ -213,14 +225,14 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   // camera
   auto camera = camObj->Get<Cmpt::Camera>();
   assert(camera != nullptr);
-  auto cam_l2w = camObj->Get<Cmpt::L2W>()->value;
-  auto cam_pos = cam_l2w * pointf3{0.f};
-  auto cam_front = cam_l2w * vecf3{0, 0, -1};
+  auto cam_pos = camObj->Get<Cmpt::L2W>()->WorldPos();
+  auto cam_front = (-camObj->Get<Cmpt::L2W>()->FrontInWorld()).normalize();
   gProgram->SetMatf4("view", transformf::look_at(cam_pos, cam_pos + cam_front));
   gProgram->SetMatf4("projection", transformf::perspective(
                                        camera->fov, camera->ar, 0.1f, 100.f));
   deferredlightProgram->SetVecf3("camera_pos", cam_pos);
 
+  // pass 1: GBuffer pass
   gb.Bind();
   gl::Enable(gl::Capability::DepthTest);
   gl::ClearColor({0.f, 0.f, 0.f, 0.f});
@@ -247,8 +259,8 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
     mesh->Draw(*gProgram);
   });
 
-  gl::FrameBuffer::BindReset();
-  gl::Disable(gl::Capability::DepthTest);
+  // pass 2: lighting pass
+  lightingBuffer.Bind();
 
   deferredlightProgram->Active(
       0, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
@@ -263,4 +275,13 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   deferredlightProgram->SetVecf3("pointlight_radiance", {100, 100, 120});
 
   screen->Draw(*deferredlightProgram);
+
+  // pass 3: present pass
+  gl::FrameBuffer::BindReset();
+  gl::Disable(gl::Capability::DepthTest);
+
+  screenProgram->Active(
+      0, lightingBuffer.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
+
+  screen->Draw(*screenProgram);
 }
