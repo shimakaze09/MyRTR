@@ -35,26 +35,28 @@ class DeferredRenderer::Impl {
                             TexPrecision precision = TexPrecision::Byte8);
 
  private:
-  std::map<const Primitive*, gl::Mesh*> primitive2mesh;
   size_t width{0};
   size_t height{0};
 
-  std::array<gl::Texture2D*, 4> gtexs{nullptr};
-  gl::RenderBuffer* depth{nullptr};
-  gl::Program* gProgram{nullptr};
-  gl::Program* deferredlightProgram{nullptr};
-  gl::Program* envProgram{nullptr};
-  gl::Program* screenProgram{nullptr};
-  gl::FrameBuffer gb;
+  gl::Texture2D default_white;
+  gl::Texture2D default_normal;
 
-  gl::Texture2D* lightingBuffer_tex;
-  gl::FrameBuffer lightingBuffer;
-
+  std::map<const Primitive*, gl::Mesh*> primitive2mesh;
   gl::Mesh* screen{nullptr};
   gl::Mesh* sphere{nullptr};
   gl::Mesh* cube{nullptr};
 
-  gl::Texture2D default_white;
-  gl::Texture2D default_normal;
+  gl::Program* gProgram{nullptr};
+  gl::Program* deferredlightProgram{nullptr};
+  gl::Program* envProgram{nullptr};
+  gl::Program* postprocessProgram{nullptr};
+  gl::Program* screenProgram{nullptr};
+
+  std::array<gl::Texture2D*, 4> gtexs{nullptr};
+  gl::RenderBuffer* depth{nullptr};
+  gl::FrameBuffer gb;
+
+  gl::Texture2D* lightingBuffer_tex;
+  gl::FrameBuffer lightingBuffer;
 };
 }  // namespace My

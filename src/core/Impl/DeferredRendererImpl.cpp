@@ -44,6 +44,7 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   string img_fs_path = "../data/shaders/img.fs";
   string deferredlight_fs_path = "../data/shaders/deferredlight.fs";
   string env_fs_path = "../data/shaders/env.fs";
+  string postprocess_fs_path = "../data/shaders/postprocess.fs";
 
   auto p3t2n3t3_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       p3t2n3t3_vs_path, gl::ShaderType::VertexShader, p3t2n3t3_vs_path);
@@ -60,11 +61,14 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
       deferredlight_fs_path);
   auto env_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       env_fs_path, gl::ShaderType::FragmentShader, env_fs_path);
+  auto postprocess_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      postprocess_fs_path, gl::ShaderType::FragmentShader, postprocess_fs_path);
 
   gProgram = new gl::Program(p3t2n3t3_vs, gbuffer_fs);
   screenProgram = new gl::Program(p2t2_vs, img_fs);
   deferredlightProgram = new gl::Program(p2t2_vs, deferredlight_fs);
   envProgram = new gl::Program(env_vs, env_fs);
+  postprocessProgram = new gl::Program(p2t2_vs, postprocess_fs);
 
   gProgram->SetTex("albedo_texture", 0);
   gProgram->SetTex("roughness_texture", 1);
@@ -109,12 +113,15 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
 DeferredRenderer::Impl::~Impl() {
   for (auto tex : gtexs)
     delete tex;
+  delete lightingBuffer_tex;
 
   delete depth;
 
   delete gProgram;
-  delete screenProgram;
   delete deferredlightProgram;
+  delete envProgram;
+  delete postprocessProgram;
+  delete screenProgram;
 
   for (const auto& [primitive, rec] : primitive2mesh)
     delete rec;
@@ -170,12 +177,6 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
       gl::PixelDataFormat::Rgb, gl::PixelDataFormat::Rgba};
   gl::PixelDataInternalFormat c2if[4];
   switch (precision) {
-    case My::DeferredRenderer::Impl::TexPrecision::Byte8:
-      c2if[0] = gl::PixelDataInternalFormat::Red;
-      c2if[1] = gl::PixelDataInternalFormat::Rg;
-      c2if[2] = gl::PixelDataInternalFormat::Rgb;
-      c2if[3] = gl::PixelDataInternalFormat::Rgba;
-      break;
     case My::DeferredRenderer::Impl::TexPrecision::F16:
       c2if[0] = gl::PixelDataInternalFormat::R16F;
       c2if[1] = gl::PixelDataInternalFormat::Rg16F;
@@ -188,7 +189,12 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
       c2if[2] = gl::PixelDataInternalFormat::Rgb32F;
       c2if[3] = gl::PixelDataInternalFormat::Rgba32F;
       break;
+    case My::DeferredRenderer::Impl::TexPrecision::Byte8:
     default:
+      c2if[0] = gl::PixelDataInternalFormat::Red;
+      c2if[1] = gl::PixelDataInternalFormat::Rg;
+      c2if[2] = gl::PixelDataInternalFormat::Rgb;
+      c2if[3] = gl::PixelDataInternalFormat::Rgba;
       break;
   }
   map<Texture2D::WrapMode, gl::WrapMode> wrapmodemap = {
@@ -335,12 +341,12 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   cube->Draw(*envProgram);
   gl::DepthFunc(gl::CompareFunc::Less);
 
-  // [pass 3] present pass
+  // [pass 3] postprocess pass
   gl::FrameBuffer::BindReset();
   gl::Disable(gl::Capability::DepthTest);
 
-  screenProgram->Active(
+  postprocessProgram->Active(
       0, lightingBuffer.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
 
-  screen->Draw(*screenProgram);
+  screen->Draw(*postprocessProgram);
 }
