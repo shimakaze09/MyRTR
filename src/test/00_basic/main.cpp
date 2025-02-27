@@ -82,6 +82,8 @@ int main() {
       scene.CreateSObj<Cmpt::Geometry, Cmpt::Material, Rotater>("sobj3");
   auto [sobj4, light4] = scene.CreateSObj<Cmpt::Light>("sobj4");
   auto [sobj5, env] = scene.CreateSObj<Cmpt::Light>("sobj5");
+  auto [sobj6, light6, geo6] =
+      scene.CreateSObj<Cmpt::Light, Cmpt::Geometry>("sobj6");
 
   string albedo_path = "../data/textures/rusted_iron/albedo.png";
   string roughness_path = "../data/textures/rusted_iron/roughness.png";
@@ -103,7 +105,7 @@ int main() {
   brdf1->albedo_texture = albedo_texture;
   brdf1->roughness_texture = roughness_texture;
   brdf1->metalness_texture = metalness_texture;
-  brdf1->normal_map = normals_texture;
+  // brdf1->normal_map = normals_texture;
   brdf2->albedo_texture = albedo_texture;
   brdf2->roughness_texture = roughness_texture;
   brdf2->metalness_texture = metalness_texture;
@@ -129,6 +131,10 @@ int main() {
 
   light4->light = new PointLight{100.f, {0.9f, 0.9f, 1.f}};
   sobj4->Get<Cmpt::Position>()->value = {0, 4, 0};
+
+  light6->light = new AreaLight{10.f, {1, 0, 1}};
+  geo6->SetPrimitive(new Square);
+  sobj6->Get<Cmpt::Position>()->value = {0, -4, 0};
 
   env->SetLight(new EnvLight(1.f, rgbf{1.f}, env_texture));
 

@@ -41,6 +41,9 @@ class DeferredRenderer::Impl {
   gl::Texture2D default_white;
   gl::Texture2D default_normal;
 
+  gl::Texture2D LTC_tsfm;
+  gl::Texture2D LTC_nf0s;
+
   std::map<const Primitive*, gl::Mesh*> primitive2mesh;
   gl::Mesh* screen{nullptr};
   gl::Mesh* sphere{nullptr};
