@@ -105,7 +105,7 @@ int main() {
   brdf1->albedo_texture = albedo_texture;
   brdf1->roughness_texture = roughness_texture;
   brdf1->metalness_texture = metalness_texture;
-  // brdf1->normal_map = normals_texture;
+  brdf1->normal_map = normals_texture;
   brdf2->albedo_texture = albedo_texture;
   brdf2->roughness_texture = roughness_texture;
   brdf2->metalness_texture = metalness_texture;
@@ -132,7 +132,7 @@ int main() {
   light4->light = new PointLight{100.f, {0.9f, 0.9f, 1.f}};
   sobj4->Get<Cmpt::Position>()->value = {0, 4, 0};
 
-  light6->light = new AreaLight{10.f, {1, 0, 1}};
+  light6->light = new AreaLight{100.f, {1, 0, 1}};
   geo6->SetPrimitive(new Square);
   sobj6->Get<Cmpt::Position>()->value = {0, -4, 0};
 

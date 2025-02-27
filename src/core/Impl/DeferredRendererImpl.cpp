@@ -91,8 +91,8 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   deferredlightProgram->SetTex("gbuffer1", 1);
   deferredlightProgram->SetTex("gbuffer2", 2);
   deferredlightProgram->SetTex("gbuffer3", 3);
-  deferredlightProgram->SetTex("ltc_tsfm", 4);
-  deferredlightProgram->SetTex("ltc_nf0s", 5);
+  deferredlightProgram->SetTex("LTC_tsfm", 4);
+  deferredlightProgram->SetTex("LTC_nf0s", 5);
 
   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
   float quad_vertices[] = {// positions   // texCoords
