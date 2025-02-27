@@ -46,53 +46,62 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
   default_normal.SetWrapFilter(gl::WrapMode::Repeat, gl::WrapMode::Repeat,
                                gl::MinFilter::Nearest, gl::MagFilter::Nearest);
 
+  string p3t2_vs_path = "../data/shaders/p3t2.vs";
   string p3t2n3t3_vs_path = "../data/shaders/p3t2n3t3.vs";
   string p2t2_vs_path = "../data/shaders/p2t2.vs";
   string env_vs_path = "../data/shaders/env.vs";
-  string gbuffer_fs_path = "../data/shaders/gbuffer.fs";
+  string stdBRDF_fs_path = "../data/shaders/stdBRDF.fs";
+  string light_fs_path = "../data/shaders/light.fs";
   string img_fs_path = "../data/shaders/img.fs";
-  string deferredlight_fs_path = "../data/shaders/deferredlight.fs";
+  string deferred_lighting_fs_path = "../data/shaders/deferred_lighting.fs";
   string env_fs_path = "../data/shaders/env.fs";
   string postprocess_fs_path = "../data/shaders/postprocess.fs";
 
+  auto p3t2_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      p3t2_vs_path, gl::ShaderType::VertexShader, p3t2_vs_path);
   auto p3t2n3t3_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       p3t2n3t3_vs_path, gl::ShaderType::VertexShader, p3t2n3t3_vs_path);
   auto p2t2_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       p2t2_vs_path, gl::ShaderType::VertexShader, p2t2_vs_path);
   auto env_vs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       env_vs_path, gl::ShaderType::VertexShader, env_vs_path);
-  auto gbuffer_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
-      gbuffer_fs_path, gl::ShaderType::FragmentShader, gbuffer_fs_path);
+  auto stdBRDF_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      stdBRDF_fs_path, gl::ShaderType::FragmentShader, stdBRDF_fs_path);
+  auto light_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      light_fs_path, gl::ShaderType::FragmentShader, light_fs_path);
   auto img_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       img_fs_path, gl::ShaderType::FragmentShader, img_fs_path);
-  auto deferredlight_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
-      deferredlight_fs_path, gl::ShaderType::FragmentShader,
-      deferredlight_fs_path);
+  auto deferred_lighting_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
+      deferred_lighting_fs_path, gl::ShaderType::FragmentShader,
+      deferred_lighting_fs_path);
   auto env_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       env_fs_path, gl::ShaderType::FragmentShader, env_fs_path);
   auto postprocess_fs = RsrcMngr<gl::Shader>::Instance().GetOrCreate(
       postprocess_fs_path, gl::ShaderType::FragmentShader, postprocess_fs_path);
 
-  gProgram = new gl::Program(p3t2n3t3_vs, gbuffer_fs);
+  stdBRDFProgram = new gl::Program(p3t2n3t3_vs, stdBRDF_fs);
+  lightProgram = new gl::Program(p3t2_vs, light_fs);
   screenProgram = new gl::Program(p2t2_vs, img_fs);
-  deferredlightProgram = new gl::Program(p2t2_vs, deferredlight_fs);
+  deferred_lightingProgram = new gl::Program(p2t2_vs, deferred_lighting_fs);
   envProgram = new gl::Program(env_vs, env_fs);
   postprocessProgram = new gl::Program(p2t2_vs, postprocess_fs);
 
-  gProgram->SetTex("albedo_texture", 0);
-  gProgram->SetTex("roughness_texture", 1);
-  gProgram->SetTex("metalness_texture", 2);
-  gProgram->SetTex("normalmap", 3);
+  stdBRDFProgram->SetTex("albedo_texture", 0);
+  stdBRDFProgram->SetTex("roughness_texture", 1);
+  stdBRDFProgram->SetTex("metalness_texture", 2);
+  stdBRDFProgram->SetTex("normalmap", 3);
+
+  lightProgram->SetTex("radiance_texture", 0);
 
   screenProgram->SetTex("img", 0);
   envProgram->SetTex("EnvLight_texture", 0);
 
-  deferredlightProgram->SetTex("gbuffer0", 0);
-  deferredlightProgram->SetTex("gbuffer1", 1);
-  deferredlightProgram->SetTex("gbuffer2", 2);
-  deferredlightProgram->SetTex("gbuffer3", 3);
-  deferredlightProgram->SetTex("LTC_tsfm", 4);
-  deferredlightProgram->SetTex("LTC_nf0s", 5);
+  deferred_lightingProgram->SetTex("gbuffer0", 0);
+  deferred_lightingProgram->SetTex("gbuffer1", 1);
+  deferred_lightingProgram->SetTex("gbuffer2", 2);
+  deferred_lightingProgram->SetTex("gbuffer3", 3);
+  deferred_lightingProgram->SetTex("LTC_tsfm", 4);
+  deferred_lightingProgram->SetTex("LTC_nf0s", 5);
 
   // vertex attributes for a quad that fills the entire screen in Normalized Device Coordinates.
   float quad_vertices[] = {// positions   // texCoords
@@ -119,6 +128,15 @@ DeferredRenderer::Impl::Impl() : depth{new gl::RenderBuffer} {
                     make_tuple(cubeMesh.texcoords->data()->data(), 2),
                     make_tuple(cubeMesh.normals->data()->data(), 3),
                     make_tuple(cubeMesh.tangents->data()->data(), 3)});
+
+  auto squareMesh = TriMesh(TriMesh::Type::Square);
+  square = new gl::Mesh(
+      gl::BasicPrimitiveType::Triangles, squareMesh.indices->size(),
+      squareMesh.positions->size(), squareMesh.indices->data()->data(),
+      {make_tuple(squareMesh.positions->data()->data(), 3),
+       make_tuple(squareMesh.texcoords->data()->data(), 2),
+       make_tuple(squareMesh.normals->data()->data(), 3),
+       make_tuple(squareMesh.tangents->data()->data(), 3)});
 }
 
 DeferredRenderer::Impl::~Impl() {
@@ -128,8 +146,8 @@ DeferredRenderer::Impl::~Impl() {
 
   delete depth;
 
-  delete gProgram;
-  delete deferredlightProgram;
+  delete stdBRDFProgram;
+  delete deferred_lightingProgram;
   delete envProgram;
   delete postprocessProgram;
   delete screenProgram;
@@ -160,6 +178,8 @@ gl::Mesh* DeferredRenderer::Impl::GetPrimitiveMesh(const Primitive* primitive) {
     return mesh;
   } else if (vtable_is<Sphere>(primitive)) {
     return sphere;
+  } else if (vtable_is<Square>(primitive)) {
+    return square;
   } else
     return nullptr;
 }
@@ -169,9 +189,9 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
                                                   TexPrecision precision) {
   if (tex == nullptr) {
     switch (default_tex) {
-      case My::DeferredRenderer::Impl::DefaultTex::White:
+      case Ubpa::DeferredRenderer::Impl::DefaultTex::White:
         return &default_white;
-      case My::DeferredRenderer::Impl::DefaultTex::Normal:
+      case Ubpa::DeferredRenderer::Impl::DefaultTex::Normal:
         return &default_normal;
       default:
         return nullptr;
@@ -188,19 +208,19 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
       gl::PixelDataFormat::Rgb, gl::PixelDataFormat::Rgba};
   gl::PixelDataInternalFormat c2if[4];
   switch (precision) {
-    case My::DeferredRenderer::Impl::TexPrecision::F16:
+    case Ubpa::DeferredRenderer::Impl::TexPrecision::F16:
       c2if[0] = gl::PixelDataInternalFormat::R16F;
       c2if[1] = gl::PixelDataInternalFormat::Rg16F;
       c2if[2] = gl::PixelDataInternalFormat::Rgb16F;
       c2if[3] = gl::PixelDataInternalFormat::Rgba16F;
       break;
-    case My::DeferredRenderer::Impl::TexPrecision::F32:
+    case Ubpa::DeferredRenderer::Impl::TexPrecision::F32:
       c2if[0] = gl::PixelDataInternalFormat::R32F;
       c2if[1] = gl::PixelDataInternalFormat::Rg32F;
       c2if[2] = gl::PixelDataInternalFormat::Rgb32F;
       c2if[3] = gl::PixelDataInternalFormat::Rgba32F;
       break;
-    case My::DeferredRenderer::Impl::TexPrecision::Byte8:
+    case Ubpa::DeferredRenderer::Impl::TexPrecision::Byte8:
     default:
       c2if[0] = gl::PixelDataInternalFormat::Red;
       c2if[1] = gl::PixelDataInternalFormat::Rg;
@@ -269,14 +289,21 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   assert(camera != nullptr);
   auto cam_pos = camObj->Get<Cmpt::L2W>()->WorldPos();
   auto cam_front = (-camObj->Get<Cmpt::L2W>()->FrontInWorld()).normalize();
-  gProgram->SetMatf4("view", transformf::look_at(cam_pos, cam_pos + cam_front));
-  gProgram->SetMatf4("projection", transformf::perspective(
-                                       camera->fov, camera->ar, 0.1f, 100.f));
-  deferredlightProgram->SetVecf3("camera_pos", cam_pos);
+  stdBRDFProgram->SetMatf4("view",
+                           transformf::look_at(cam_pos, cam_pos + cam_front));
+  stdBRDFProgram->SetMatf4(
+      "projection",
+      transformf::perspective(camera->fov, camera->ar, 0.1f, 100.f));
   envProgram->SetMatf4("view",
                        transformf::look_at(cam_pos, cam_pos + cam_front));
   envProgram->SetMatf4("projection", transformf::perspective(
                                          camera->fov, camera->ar, 0.1f, 100.f));
+  lightProgram->SetMatf4("view",
+                         transformf::look_at(cam_pos, cam_pos + cam_front));
+  lightProgram->SetMatf4(
+      "projection",
+      transformf::perspective(camera->fov, camera->ar, 0.1f, 100.f));
+  deferred_lightingProgram->SetVecf3("camera_pos", cam_pos);
 
   // set point/rect lights and env light
   size_t pointLightNum = 0;
@@ -287,10 +314,11 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
     if (vtable_is<PointLight>(light->light.get())) {
       auto pointLight = static_cast<const PointLight*>(light->light.get());
       string obj = string("pointlights[") + to_string(pointLightNum++) + "]";
-      deferredlightProgram->SetVecf3((obj + ".position").c_str(),
-                                     l2w->WorldPos());
-      deferredlightProgram->SetVecf3((obj + ".radiance").c_str(),
-                                     pointLight->intensity * pointLight->color);
+      deferred_lightingProgram->SetVecf3((obj + ".position").c_str(),
+                                         l2w->WorldPos());
+      deferred_lightingProgram->SetVecf3(
+          (obj + ".radiance").c_str(),
+          pointLight->intensity * pointLight->color);
     } else if (!envLight && vtable_is<EnvLight>(light->light.get())) {
       envLight = static_cast<const EnvLight*>(light->light.get());
       envProgram->SetVecf3("EnvLight_color", envLight->color);
@@ -307,12 +335,12 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
           auto scale = l2w->value->decompose_scale();
           auto width = 2.f * scale[0];
           auto height = 2.f * scale[2];
-          deferredlightProgram->SetVecf3((obj + ".position").c_str(), pos);
-          deferredlightProgram->SetVecf3((obj + ".dir").c_str(), dir);
-          deferredlightProgram->SetVecf3((obj + ".right").c_str(), right);
-          deferredlightProgram->SetFloat((obj + ".width").c_str(), width);
-          deferredlightProgram->SetFloat((obj + ".height").c_str(), height);
-          deferredlightProgram->SetVecf3(
+          deferred_lightingProgram->SetVecf3((obj + ".position").c_str(), pos);
+          deferred_lightingProgram->SetVecf3((obj + ".dir").c_str(), dir);
+          deferred_lightingProgram->SetVecf3((obj + ".right").c_str(), right);
+          deferred_lightingProgram->SetFloat((obj + ".width").c_str(), width);
+          deferred_lightingProgram->SetFloat((obj + ".height").c_str(), height);
+          deferred_lightingProgram->SetVecf3(
               (obj + ".radiance").c_str(),
               areaLight->color * areaLight->intensity);
         }
@@ -321,10 +349,10 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
   });
   if (!envLight)
     envProgram->SetFloat("EnvLight_intensity", 0.f);
-  deferredlightProgram->SetUInt("pointlight_num",
-                                static_cast<GLuint>(pointLightNum));
-  deferredlightProgram->SetUInt("rectlight_num",
-                                static_cast<GLuint>(rectLightNum));
+  deferred_lightingProgram->SetUInt("pointlight_num",
+                                    static_cast<GLuint>(pointLightNum));
+  deferred_lightingProgram->SetUInt("rectlight_num",
+                                    static_cast<GLuint>(rectLightNum));
 
   // [pass 1] GBuffer pass
   gb.Bind();
@@ -340,35 +368,50 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
       return;
     if (vtable_is<stdBRDF>(mat->material.get())) {
       auto brdf = static_cast<const stdBRDF*>(mat->material.get());
-      gProgram->SetFloat("metalness_factor", brdf->metalness_factor);
-      gProgram->SetVecf3("albedo_factor", brdf->albedo_factor);
-      gProgram->SetFloat("roughness_factor", brdf->roughness_factor);
+      stdBRDFProgram->SetFloat("metalness_factor", brdf->metalness_factor);
+      stdBRDFProgram->SetVecf3("albedo_factor", brdf->albedo_factor);
+      stdBRDFProgram->SetFloat("roughness_factor", brdf->roughness_factor);
 
-      gProgram->Active(0, GetGLTex2D(brdf->albedo_texture));
-      gProgram->Active(1, GetGLTex2D(brdf->roughness_texture));
-      gProgram->Active(2, GetGLTex2D(brdf->metalness_texture));
-      gProgram->Active(3, GetGLTex2D(brdf->normal_map, DefaultTex::Normal));
+      stdBRDFProgram->Active(0, GetGLTex2D(brdf->albedo_texture));
+      stdBRDFProgram->Active(1, GetGLTex2D(brdf->roughness_texture));
+      stdBRDFProgram->Active(2, GetGLTex2D(brdf->metalness_texture));
+      stdBRDFProgram->Active(3,
+                             GetGLTex2D(brdf->normal_map, DefaultTex::Normal));
     }
-    gProgram->SetMatf4("model", l2w->value);
-    mesh->Draw(*gProgram);
+    stdBRDFProgram->SetMatf4("model", l2w->value);
+    mesh->Draw(*stdBRDFProgram);
+  });
+  scene->Each([this](Cmpt::Geometry* geo, Cmpt::Light* light, Cmpt::L2W* l2w) {
+    Primitive* primitive = geo->primitive;
+    auto mesh = GetPrimitiveMesh(primitive);
+    if (!mesh)
+      return;
+    if (vtable_is<AreaLight>(light->light.get())) {
+      auto arealight = static_cast<const AreaLight*>(light->light.get());
+      lightProgram->SetVecf3("radiance_factor",
+                             arealight->color * arealight->intensity);
+      lightProgram->Active(0, GetGLTex2D(arealight->texture));
+    }
+    lightProgram->SetMatf4("model", l2w->value);
+    mesh->Draw(*lightProgram);
   });
 
   // [pass 2] lighting pass
   lightingBuffer.Bind();
   gl::Disable(gl::Capability::DepthTest);
 
-  deferredlightProgram->Active(
+  deferred_lightingProgram->Active(
       0, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment0));
-  deferredlightProgram->Active(
+  deferred_lightingProgram->Active(
       1, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment1));
-  deferredlightProgram->Active(
+  deferred_lightingProgram->Active(
       2, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment2));
-  deferredlightProgram->Active(
+  deferred_lightingProgram->Active(
       3, gb.GetTex2D(gl::FramebufferAttachment::ColorAttachment3));
-  deferredlightProgram->Active(4, &LTC_tsfm);
-  deferredlightProgram->Active(5, &LTC_nf0s);
+  deferred_lightingProgram->Active(4, &LTC_tsfm);
+  deferred_lightingProgram->Active(5, &LTC_nf0s);
 
-  screen->Draw(*deferredlightProgram);
+  screen->Draw(*deferred_lightingProgram);
 
   gl::Enable(gl::Capability::DepthTest);
   gl::DepthFunc(gl::CompareFunc::Lequal);

@@ -62,7 +62,7 @@ int main() {
   //   glfwSetScrollCallback(window, scroll_callback);
 
   // tell GLFW to capture our mouse
-  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+  glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
 
   // glad: load all OpenGL function pointers
   // ---------------------------------------
@@ -78,12 +78,12 @@ int main() {
       scene.CreateSObj<Cmpt::Geometry, Cmpt::Material>("sobj1");
   auto [sobj2, geo2, mat2] =
       scene.CreateSObj<Cmpt::Geometry, Cmpt::Material>("sobj2");
-  auto [sobj3, geo3, mat3, r] =
+  auto [sobj3, geo3, mat3, r3] =
       scene.CreateSObj<Cmpt::Geometry, Cmpt::Material, Rotater>("sobj3");
   auto [sobj4, light4] = scene.CreateSObj<Cmpt::Light>("sobj4");
   auto [sobj5, env] = scene.CreateSObj<Cmpt::Light>("sobj5");
-  auto [sobj6, light6, geo6] =
-      scene.CreateSObj<Cmpt::Light, Cmpt::Geometry>("sobj6");
+  auto [sobj6, light6, geo6, r6] =
+      scene.CreateSObj<Cmpt::Light, Cmpt::Geometry, Rotater>("sobj6");
 
   string albedo_path = "../data/textures/rusted_iron/albedo.png";
   string roughness_path = "../data/textures/rusted_iron/roughness.png";
@@ -134,7 +134,10 @@ int main() {
 
   light6->light = new AreaLight{100.f, {1, 0, 1}};
   geo6->SetPrimitive(new Square);
-  sobj6->Get<Cmpt::Position>()->value = {0, -4, 0};
+  sobj6->Get<Cmpt::Position>()->value = {0, 3, 0};
+  sobj6->Get<Cmpt::Rotation>()->value =
+      quatf{vecf3{1, 0, 0}, to_radian(180.f)} *
+      sobj6->Get<Cmpt::Rotation>()->value;
 
   env->SetLight(new EnvLight(1.f, rgbf{1.f}, env_texture));
 

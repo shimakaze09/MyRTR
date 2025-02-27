@@ -1,4 +1,3 @@
-
 #version 330 core
 
 #define PI 3.1415926
@@ -8,11 +7,18 @@ out vec3 FragColor;
 
 in vec2 TexCoord;
 
-// layout
+// layout : stdBRDF
 //      x   y   z   w
 // 0    [albedo]  roughness
 // 1    [normal]  metalness
-// 2    [ pos  ]    0
+// 2    [ pos  ]   0.5
+// 3    0   0   0   0
+
+// layout : light
+//      x   y   z   w
+// 0    [radiance]  0
+// 1    0   0   0   0
+// 2    0   0   0  1.5
 // 3    0   0   0   0
 
 uniform sampler2D gbuffer0;
@@ -99,44 +105,54 @@ void main() {
 	vec4 data2 = texture(gbuffer2, TexCoord);
 	vec4 data3 = texture(gbuffer3, TexCoord);
 	
-	vec3 albedo = data0.xyz;
-	float roughness = data0.w;
-	vec3 N = data1.xyz;
-	float metalness = data1.w;
-	vec3 pos = data2.xyz;
-	vec3 F0 = MetalWorkflow_F0(albedo, metalness);
-	
-	float alpha = roughness * roughness;
-	vec3 V = normalize(camera_pos - pos); // frag to camera
-	
 	vec3 Lo = vec3(0);
 	
-	// point light
-	for(unsigned int i = 0u; i < pointlight_num; i++) {
-		vec3 fragTolight = pointlights[i].position - pos; // frag to light
-		float dist2 = dot(fragTolight, fragTolight);
-		float dist = sqrt(dist2);
-		vec3 L = fragTolight / dist; // normalized
-		vec3 H = normalize(L + V);
-		
-		float cos_theta = dot(N, L);
-		
-		vec3 fr = fresnel(F0, cos_theta);
-		float D = GGX_D(alpha, N, H);
-		float G = GGX_G(alpha, L, V, N);
-		
-		vec3 diffuse = (1 - fr) * (1 - metalness) * albedo / PI;
-		
-		vec3 specular = fr * D * G / (4 * max(dot(L, N)*dot(V, N), EPSILON));
-		
-		vec3 brdf = diffuse + specular;
-		Lo += brdf * pointlights[i].radiance * max(cos_theta, 0) / dist2;
-	}
+	float ID = data2.w;
 	
-	for(unsigned int i = 0u; i < rectlight_num; i++) {
-		vec3 spec = LTC_Spec(N, V, pos, F0, roughness, rectlights[i]);
-		vec3 diffuse = (1 - F0) * (1 - metalness) * albedo / PI * LTC_Diffuse(N, V, pos, roughness, rectlights[i]);
-		Lo += diffuse + spec;
+	if(ID < 1.0) {// stdBRDF
+		vec3 albedo = data0.xyz;
+		float roughness = data0.w;
+		vec3 N = data1.xyz;
+		float metalness = data1.w;
+		vec3 pos = data2.xyz;
+		vec3 F0 = MetalWorkflow_F0(albedo, metalness);
+		
+		float alpha = roughness * roughness;
+		vec3 V = normalize(camera_pos - pos); // frag to camera
+		
+		// point light
+		for(unsigned int i = 0u; i < pointlight_num; i++) {
+			vec3 fragTolight = pointlights[i].position - pos; // frag to light
+			float dist2 = dot(fragTolight, fragTolight);
+			float dist = sqrt(dist2);
+			vec3 L = fragTolight / dist; // normalized
+			vec3 H = normalize(L + V);
+			
+			float cos_theta = dot(N, L);
+			
+			vec3 fr = fresnel(F0, cos_theta);
+			float D = GGX_D(alpha, N, H);
+			float G = GGX_G(alpha, L, V, N);
+			
+			vec3 diffuse = (1 - fr) * (1 - metalness) * albedo / PI;
+			
+			vec3 specular = fr * D * G / (4 * max(dot(L, N)*dot(V, N), EPSILON));
+			
+			vec3 brdf = diffuse + specular;
+			Lo += brdf * pointlights[i].radiance * max(cos_theta, 0) / dist2;
+		}
+		
+		for(unsigned int i = 0u; i < rectlight_num; i++) {
+			vec3 spec = LTC_Spec(N, V, pos, F0, roughness, rectlights[i]);
+			vec3 diffuse = (1 - F0) * (1 - metalness) * albedo / PI * LTC_Diffuse(N, V, pos, roughness, rectlights[i]);
+			Lo += diffuse + spec;
+		}
+	}
+	else if ( ID < 2.0 ){ // light
+		Lo = data0.xyz;
+	}
+	else { // error
+		Lo = vec3(1, 0, 1);
 	}
 	
 	FragColor = Lo;

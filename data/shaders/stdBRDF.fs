@@ -9,7 +9,7 @@ layout (location = 3) out vec4 GBuffer3;
 //      x   y   z   w
 // 0    [albedo]  roughness
 // 1    [normal]  metalness
-// 2    [ pos  ]    0
+// 2    [ pos  ]    ID
 // 3    0   0   0   0
 
 in VS_OUT {
@@ -38,6 +38,6 @@ void main()
 	
 	GBuffer0 = vec4(albedo, roughness);
 	GBuffer1 = vec4(normal, metalness);
-	GBuffer2 = vec4(vs_out.WorldPos, 0);
+	GBuffer2 = vec4(vs_out.WorldPos, 0.5);
 	GBuffer3 = vec4(0, 0, 0, 0);
 }
