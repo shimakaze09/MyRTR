@@ -193,9 +193,9 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
                                                   TexPrecision precision) {
   if (tex == nullptr) {
     switch (default_tex) {
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::White:
+      case My::DeferredRenderer::Impl::DefaultTex::White:
         return &default_white;
-      case Ubpa::DeferredRenderer::Impl::DefaultTex::Normal:
+      case My::DeferredRenderer::Impl::DefaultTex::Normal:
         return &default_normal;
       default:
         return nullptr;
@@ -212,19 +212,19 @@ gl::Texture2D* DeferredRenderer::Impl::GetGLTex2D(const Texture2D* tex,
       gl::PixelDataFormat::Rgb, gl::PixelDataFormat::Rgba};
   gl::PixelDataInternalFormat c2if[4];
   switch (precision) {
-    case Ubpa::DeferredRenderer::Impl::TexPrecision::F16:
+    case My::DeferredRenderer::Impl::TexPrecision::F16:
       c2if[0] = gl::PixelDataInternalFormat::R16F;
       c2if[1] = gl::PixelDataInternalFormat::Rg16F;
       c2if[2] = gl::PixelDataInternalFormat::Rgb16F;
       c2if[3] = gl::PixelDataInternalFormat::Rgba16F;
       break;
-    case Ubpa::DeferredRenderer::Impl::TexPrecision::F32:
+    case My::DeferredRenderer::Impl::TexPrecision::F32:
       c2if[0] = gl::PixelDataInternalFormat::R32F;
       c2if[1] = gl::PixelDataInternalFormat::Rg32F;
       c2if[2] = gl::PixelDataInternalFormat::Rgb32F;
       c2if[3] = gl::PixelDataInternalFormat::Rgba32F;
       break;
-    case Ubpa::DeferredRenderer::Impl::TexPrecision::Byte8:
+    case My::DeferredRenderer::Impl::TexPrecision::Byte8:
     default:
       c2if[0] = gl::PixelDataInternalFormat::Red;
       c2if[1] = gl::PixelDataInternalFormat::Rg;
@@ -329,7 +329,7 @@ void DeferredRenderer::Impl::RenderImpl(Scene* scene, SObj* camObj,
       envProgram->SetFloat("EnvLight_intensity", envLight->intensity);
     } else if (vtable_is<AreaLight>(light->light.get())) {
       auto areaLight = static_cast<const AreaLight*>(light->light.get());
-      auto geo = sobjptr->sobj->Get<Cmpt::Geometry>();
+      auto geo = sobjptr->value->Get<Cmpt::Geometry>();
       if (geo) {
         if (vtable_is<Square>(geo->primitive.get())) {
           string obj = string("rectlights[") + to_string(rectLightNum++) + "]";

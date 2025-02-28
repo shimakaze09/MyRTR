@@ -21,13 +21,14 @@ constexpr size_t SCR_HEIGHT = 720;
 //void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
+namespace My::detail::dynamic_reflection {
+void ReflRegist_Rotater();
+}
+
 struct Rotater : Component {
   float speed{1.f};
 
-  static void OnRegist() {
-    Reflection<Rotater>::Instance().Regist(&Rotater::speed,
-                                           NAMEOF(Rotater::speed).c_str());
-  }
+  static void OnRegist() { detail::dynamic_reflection::ReflRegist_Rotater(); }
 
   void OnUpdate(Cmpt::Rotation* rot) const {
     rot->value = quatf{vecf3{1.f}, speed * to_radian(1.f)} * rot->value;
@@ -35,9 +36,8 @@ struct Rotater : Component {
 };
 
 int main() {
-  sizeof(Cmpt::Rotation);
-
-  SceneReflectionInit();
+  Scene::OnRegist();
+  CmptRegister::Instance().Regist<Rotater>();
 
   // glfw: initialize and configure
   // ------------------------------
@@ -55,7 +55,7 @@ int main() {
   // glfw window creation
   // --------------------
   GLFWwindow* window = glfwCreateWindow(
-      SCR_WIDTH, SCR_HEIGHT, "Ubpa@2020 : test - 01 - defer", NULL, NULL);
+      SCR_WIDTH, SCR_HEIGHT, "My@2025 : test - 01 - defer", NULL, NULL);
   if (window == NULL) {
     std::cout << "Failed to create GLFW window" << std::endl;
     glfwTerminate();
@@ -134,10 +134,10 @@ int main() {
   camera->fov = to_radian(60.f);
   camera->ar = SCR_WIDTH / static_cast<float>(SCR_HEIGHT);
 
-  light4->light = new PointLight{100.f, {0.9f, 0.9f, 1.f}};
+  light4->SetLight(new PointLight{100.f, {0.9f, 0.9f, 1.f}});
   sobj4->Get<Cmpt::Position>()->value = {0, 4, 0};
 
-  light6->light = new AreaLight{100.f, {1, 0, 1}};
+  light6->SetLight(new AreaLight{100.f, {1, 0, 1}});
   geo6->SetPrimitive(new Square);
   sobj6->Get<Cmpt::Position>()->value = {0, 3, 0};
   sobj6->Get<Cmpt::Rotation>()->value =
@@ -187,3 +187,21 @@ void processInput(GLFWwindow* window) {
   //   if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
   //     camera.ProcessKeyboard(RIGHT, deltaTime);
 }
+
+namespace My::detail::dynamic_reflection {
+void ReflRegist_Rotater() {
+  Reflection<Rotater>::Instance()        // name : struct ::Rotater
+      .Regist(&Rotater::speed, "speed")  //  float
+      ;
+  if constexpr (std::is_base_of_v<Component, Rotater>) {
+    Reflection<Rotater>::Instance().RegistConstructor([](SObj* sobj) {
+      if constexpr (std::is_base_of_v<Component, Rotater>) {
+        if constexpr (My::detail::SObj_::IsNecessaryCmpt<Rotater>)
+          return sobj->Get<Rotater>();
+        else
+          return sobj->GetOrAttach<Rotater>();
+      };
+    });
+  }
+}
+}  // namespace My::detail::dynamic_reflection
