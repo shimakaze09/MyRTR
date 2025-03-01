@@ -2,7 +2,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 3.14 FATAL_ERROR)
 
 # Set the project
-PROJECT(MyRTR VERSION 0.0.5 LANGUAGES CXX)
+PROJECT(MyRTR VERSION 0.0.6 LANGUAGES CXX)
 MESSAGE(STATUS "Project: ${PROJECT_NAME} ${PROJECT_VERSION}")
 
 # Add 'd' postfix for debug builds
@@ -33,22 +33,22 @@ SET_PROPERTY(GLOBAL PROPERTY USE_FOLDERS ON)
 # Add CMake modules
 INCLUDE(FETCHCONTENT)
 
-MESSAGE(STATUS "Looking for: MyCMake v0.4.1")
-FIND_PACKAGE(MyCMake 0.4.1 QUIET)
+MESSAGE(STATUS "Looking for: MyCMake 0.4.2")
+FIND_PACKAGE(MyCMake 0.4.2 QUIET)
 IF (${MyCMake_FOUND})
     MESSAGE(STATUS "MyCMake v${MyCMake_VERSION} found")
 ELSE ()
     SET(ADDRESS "https://github.com/shimakaze09/MyCMake.git")
-    MESSAGE(STATUS "MyCMake v0.4.1 not found\n"
-            "fetch from ${ADDRESS} with tag v0.4.1")
+    MESSAGE(STATUS "MyCMake 0.4.2 not found\n"
+            "fetch from ${ADDRESS} with tag 0.4.2")
     FETCHCONTENT_DECLARE(
             MyCMake
             GIT_REPOSITORY ${ADDRESS}
-            GIT_TAG "v0.4.1"
+            GIT_TAG "0.4.2"
     )
-    message(STATUS "Building MyCMake v0.4.1")
+    message(STATUS "Building MyCMake 0.4.2")
     FETCHCONTENT_MAKEAVAILABLE(MyCMake)
-    MESSAGE(STATUS "MyCMake v0.4.1 built")
+    MESSAGE(STATUS "MyCMake 0.4.2 built")
 ENDIF ()
 
 # Set default build path prefix
@@ -56,15 +56,17 @@ INIT_INSTALL_PREFIX()
 
 INIT_TEST_SWITCH()
 
-MESSAGE(STATUS "----------")
-FIND_PACKAGE(glfw3 REQUIRED)
-IF (TARGET glfw)
-    MESSAGE(STATUS "glfw3_FOUND: ${glfw3_FOUND}")
-    MESSAGE(STATUS "glfw3_DIR: ${glfw3_DIR}")
+IF (NOT "${BUILD_TEST}" STREQUAL "OFF")
+    MESSAGE(STATUS "----------")
+    FIND_PACKAGE(glfw3 REQUIRED)
+    IF (TARGET glfw)
+        MESSAGE(STATUS "glfw3_FOUND: ${glfw3_FOUND}")
+        MESSAGE(STATUS "glfw3_DIR: ${glfw3_DIR}")
+    ENDIF ()
 ENDIF ()
 
-ADD_DEP(MyGL 0.2.0)
-ADD_DEP(MyScene 0.5.0)
+ADD_DEP(MyGL 0.2.1)
+ADD_DEP(MyScene 0.5.1)
 
 ADD_SUB_DIRS_REC(src)
 

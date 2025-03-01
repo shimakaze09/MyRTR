@@ -690,3 +690,6 @@ FodyWeavers.xsd
 # Enum
 include/MyGL/detail/enums/
 include/MyGL/enums.h
+
+# Dependencies
+_deps/
