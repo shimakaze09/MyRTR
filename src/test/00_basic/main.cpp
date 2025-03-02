@@ -22,13 +22,13 @@ constexpr size_t SCR_HEIGHT = 720;
 void processInput(GLFWwindow* window);
 
 namespace My::detail::dynamic_reflection {
-void ReflRegist_Rotater();
+void ReflRegister_Rotator();
 }
 
 struct Rotater : Component {
   float speed{1.f};
 
-  static void OnRegist() { detail::dynamic_reflection::ReflRegist_Rotater(); }
+  static void OnRegister() { detail::dynamic_reflection::ReflRegister_Rotater(); }
 
   void OnUpdate(Cmpt::Rotation* rot) const {
     rot->value = quatf{vecf3{1.f}, speed * to_radian(1.f)} * rot->value;
@@ -36,8 +36,8 @@ struct Rotater : Component {
 };
 
 int main() {
-  Scene::OnRegist();
-  CmptRegister::Instance().Regist<Rotater>();
+  Scene::OnRegister();
+  CmptRegistrar::Instance().Register<Rotater>();
 
   // glfw: initialize and configure
   // ------------------------------
@@ -151,9 +151,7 @@ int main() {
   cout << rst << endl;
 
   DeferredRenderer rtr;
-
   scene.Start();
-
   while (!glfwWindowShouldClose(window)) {
     // input
     // -----
@@ -189,12 +187,12 @@ void processInput(GLFWwindow* window) {
 }
 
 namespace My::detail::dynamic_reflection {
-void ReflRegist_Rotater() {
-  Reflection<Rotater>::Instance()        // name : struct ::Rotater
-      .Regist(&Rotater::speed, "speed")  //  float
+void ReflRegister_Rotater() {
+  Reflection<Rotater>::Instance()          // name : struct ::Rotater
+      .Register(&Rotater::speed, "speed")  //  float
       ;
   if constexpr (std::is_base_of_v<Component, Rotater>) {
-    Reflection<Rotater>::Instance().RegistConstructor([](SObj* sobj) {
+    Reflection<Rotater>::Instance().RegisterConstructor([](SObj* sobj) {
       if constexpr (std::is_base_of_v<Component, Rotater>) {
         if constexpr (My::detail::SObj_::IsNecessaryCmpt<Rotater>)
           return sobj->Get<Rotater>();
